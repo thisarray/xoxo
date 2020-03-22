@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic Tac Toe</title>
+  <style type="text/css" media="screen">
+body {
+  background-color: white;
+  color: black;
+}
+output {
+  display: block;
+  margin-bottom: 1em;
+  margin-left: 1em;
+}
+pre {
+  font-family: "Courier New", monospace;
+  font-size: 20px;
+  line-height: 20px;
+  text-transform: full-width;
+}
+table {
+  border-collapse: collapse;
+  font-size: 16px;
+  line-height: 16px;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+td {
+  background-color: white;
+  border: 1px solid black;
+  color: black;
+  height: 18px;
+  width: 18px;
+}
+  </style>
+</head>
+
+<body>
+
+<main>
+<h1>Tic Tac Toe</h1>
+
+<p><label for="size">Size:</label> <input type="number" id="size" name="size" value="3" min="3"></p>
+
+<output id="board"></output>
+<p id="marker"></p>
+<button id="new">New board</button>
+
+<p>Connect markers in a row, a column, or a diagonal.</p>
+</main>
+
+<script>
+/*
+ * Size in pixels of each cell.
+ */
+const SCALE = 20;
+
+const X_MARKER = 'X';
+const O_MARKER = 'O';
+const BLANK_MARKER = ' ';
+const TEST_MARKER = '?';
+
+class Board {
+  constructor(width, height, length, player, computer) {
+    this.width = Math.max(1, width);
+    this.height = Math.max(1, height);
+    this.cells = new Array(this.width * this.height).fill(BLANK_MARKER);
+
+    this.length = Math.max(2, length);
+    this.playerMarker = player;
+    this.computerMarker = computer;
+
+    this.done = false;
+  }
+  coordinatesToIndex(x, y) {
+    return x + (y * this.width);
+  }
+  get(x, y) {
+    if (x < 0) {
+      return BLANK_MARKER;
+    }
+    if (y < 0) {
+      return BLANK_MARKER;
+    }
+    if (x >= this.width) {
+      return BLANK_MARKER;
+    }
+    if (y >= this.height) {
+      return BLANK_MARKER;
+    }
+    return this.cells[this.coordinatesToIndex(x, y)];
+  }
+  mark(x, y, marker) {
+    if (x < 0) {
+      return this;
+    }
+    if (y < 0) {
+      return this;
+    }
+    if (x >= this.width) {
+      return this;
+    }
+    if (y >= this.height) {
+      return this;
+    }
+    if (this.done) {
+      return this;
+    }
+
+    if (marker != this.computerMarker) {
+      marker = this.playerMarker;
+    }
+
+    let board = new Board(this.width, this.height, this.length, this.playerMarker, this.computerMarker),
+        index = this.coordinatesToIndex(x, y);
+    board.cells = this.cells.slice();
+    if (board.cells[index] == BLANK_MARKER) {
+      board.cells[index] = marker;
+    }
+    else {
+      return this;
+    }
+
+    if (!board.cells.join('').includes(BLANK_MARKER)) {
+      // No more moves
+      board.done = true;
+    }
+
+    return board;
+  }
+  score(x, y) {
+    if (x < 0) {
+      return 0;
+    }
+    if (y < 0) {
+      return 0;
+    }
+    if (x >= this.width) {
+      return 0;
+    }
+    if (y >= this.height) {
+      return 0;
+    }
+
+    let winCondition = this.computerMarker.repeat(this.length),
+        loseCondition = this.playerMarker.repeat(this.length),
+        score = 0,
+        buffer = [],
+        directions = [];
+
+    // Get the row
+    for (let i = 0; i < this.width; i++) {
+      if (i == x) {
+        buffer.push(TEST_MARKER);
+      }
+      else {
+        buffer.push(this.get(i, y));
+      }
+    }
+    directions.push(buffer.join('').toUpperCase());
+
+    // Get the column
+    buffer = [];
+    for (let i = 0; i < this.height; i++) {
+      if (i == y) {
+        buffer.push(TEST_MARKER);
+      }
+      else {
+        buffer.push(this.get(x, i));
+      }
+    }
+    directions.push(buffer.join('').toUpperCase());
+
+    // Get the diagonal from (0, 0) to (width - 1, height - 1)
+    let limit = Math.max(this.width, this.height),
+        delta = Math.min(x, y),
+        startX = x - delta,
+        startY = y - delta;
+    buffer = [];
+    for (let i = 0; i < limit; i++) {
+      let currentX = startX + i,
+          currentY = startY + i;
+      if (currentX < 0) {
+        break;
+      }
+      if (currentY < 0) {
+        break;
+      }
+      if (currentX >= this.width) {
+        break;
+      }
+      if (currentY >= this.height) {
+        break;
+      }
+
+      if ((currentX == x) && (currentY == y)) {
+        buffer.push(TEST_MARKER);
+      }
+      else {
+        buffer.push(this.get(currentX, currentY));
+      }
+    }
+    directions.push(buffer.join('').toUpperCase());
+
+    // Get the diagonal from (0, width - 1) to (0, height - 1)
+    delta = Math.min(this.width - 1 - x, y);
+    startX = x + delta,
+    startY = y - delta;
+    buffer = [];
+    for (let i = 0; i < limit; i++) {
+      let currentX = startX - i,
+          currentY = startY + i;
+      if (currentX < 0) {
+        break;
+      }
+      if (currentY < 0) {
+        break;
+      }
+      if (currentX >= this.width) {
+        break;
+      }
+      if (currentY >= this.height) {
+        break;
+      }
+
+      if ((currentX == x) && (currentY == y)) {
+        buffer.push(TEST_MARKER);
+      }
+      else {
+        buffer.push(this.get(currentX, currentY));
+      }
+    }
+    directions.push(buffer.join('').toUpperCase());
+
+    for (let direction of directions) {
+      let computerTake = direction.replace(TEST_MARKER, this.computerMarker),
+          playerTake = direction.replace(TEST_MARKER, this.playerMarker);
+      //console.log('"' + direction + '"');
+
+      if (computerTake.includes(winCondition)) {
+        // If taking the spot results in a win, then prioritize this spot
+        score += 1000;
+      }
+      if (playerTake.includes(loseCondition)) {
+        // If the player taking the spot results in a win, then block it
+        score += 100;
+      }
+      if (!direction.includes(this.playerMarker)) {
+        if (direction.length >= this.length) {
+          if (direction.includes(this.computerMarker)) {
+            // Try to continue runs
+            score += 10;
+          }
+          else {
+            // Start a run that is not blocked
+            score += 1;
+          }
+        }
+      }
+    }
+
+    return score;
+  }
+  computerMove() {
+    if (this.done) {
+      return this;
+    }
+
+    let scores = [];
+    for (let x = 0; x < this.width; x++) {
+      for (let y = 0; y < this.height; y++) {
+        if (this.get(x, y) == BLANK_MARKER) {
+          scores.push({x: x, y: y, score: this.score(x, y)});
+        }
+      }
+    }
+    // Sort descending by score
+    scores.sort((a, b) => -(a.score - b.score));
+    return this.mark(scores[0].x, scores[0].y, this.computerMarker);
+  }
+
+  /*
+   * A short test suite to confirm the Board class works.
+   */
+  static test() {
+  }
+}
+Board.test();
+
+class Display {
+  constructor(parent, marker) {
+    if (!(parent instanceof Node)) {
+      throw new TypeError('Bad DOM parent.');
+    }
+    this.parent = parent;
+
+    if (!(marker instanceof Node)) {
+      throw new TypeError('Bad DOM parent.');
+    }
+    this.marker = marker;
+  }
+  draw(board) {
+    this.marker.textContent = 'Player: ' + board.playerMarker + ' Computer: ' + board.computerMarker;
+  }
+}
+
+class ASCIIDisplay extends Display {
+  draw(board) {
+    super.draw(board);
+    let target = this.parent.querySelector('pre');
+    if (target == null) {
+      this.parent.innerHTML = '';
+      target = document.createElement('pre');
+      this.parent.appendChild(target);
+    }
+
+    let rows = [];
+    for (let y = 0; y < board.height; y++) {
+      let row = [];
+      for (let x = 0; x < board.width; x++) {
+        row.push(board.get(x, y));
+      }
+      rows.push(row.join(''));
+    }
+    target.textContent = rows.join('\n');
+  }
+}
+
+class CanvasDisplay extends Display {
+  draw(board) {
+    super.draw(board);
+    let target = this.parent.querySelector('canvas');
+    if (target == null) {
+      this.parent.innerHTML = '';
+      target = document.createElement('canvas');
+      this.parent.appendChild(target);
+    }
+    let width = board.width * SCALE,
+        height = board.height * SCALE,
+        middle = SCALE / 2;
+    if ((target.width != width) || (target.height != height)) {
+      target.width = width;
+      target.height = height;
+    }
+
+    let context = target.getContext('2d');
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.strokeStyle = '#000000';
+
+    context.clearRect(0, 0, width, height);
+    for (let y = 0; y < board.height; y++) {
+      for (let x = 0; x < board.width; x++) {
+        let marker = board.get(x, y);
+        if ((marker == board.playerMarker) || (marker == board.computerMarker)) {
+          context.fillStyle = '#000000';
+          context.fillText(marker, (x * SCALE) + middle, (y * SCALE) + middle);
+        }
+      }
+    }
+
+    // Draw grid lines
+    for (let x = 1; x < board.width; x++) {
+      context.beginPath();
+      context.moveTo(x * SCALE, 0);
+      context.lineTo(x * SCALE, height);
+      context.stroke();
+    }
+    for (let y = 1; y < board.height; y++) {
+      context.beginPath();
+      context.moveTo(0, y * SCALE);
+      context.lineTo(width, y * SCALE);
+      context.stroke();
+    }
+  }
+}
+
+class TableDisplay extends Display {
+  draw(board) {
+    super.draw(board);
+    let target = this.parent.querySelector('table');
+    if (target == null) {
+      this.parent.innerHTML = '';
+      target = document.createElement('table');
+      this.parent.appendChild(target);
+    }
+
+    let rows = [];
+    for (let y = 0; y < board.height; y++) {
+      let row = [];
+      row.push('  <tr>');
+      for (let x = 0; x < board.width; x++) {
+        let cell = '    <td>' + board.get(x, y) + '</td>';
+        row.push(cell);
+      }
+      row.push('  </tr>');
+      rows.push(row.join('\n'));
+    }
+    target.innerHTML = rows.join('\n');
+  }
+}
+
+let output = document.querySelector('#board');
+let marker = document.querySelector('#marker');
+let size = document.querySelector('#size');
+//let display = new ASCIIDisplay(output, marker);
+let display = new CanvasDisplay(output, marker);
+//let display = new TableDisplay(output, marker);
+
+let board = null;
+function newBoard(event) {
+  if (Math.random() < 0.5) {
+    board = new Board(size.value, size.value, size.value, X_MARKER, O_MARKER);
+  }
+  else {
+    // Computer makes the first move
+    board = new Board(size.value, size.value, size.value, O_MARKER, X_MARKER);
+    board = board.computerMove();
+  }
+  display.draw(board);
+}
+
+size.addEventListener('change', newBoard);
+output.addEventListener('click', (event) => {
+  let box = output.getBoundingClientRect(),
+      x = Math.min(Math.floor((event.clientX - box.left) / SCALE), board.width - 1),
+      y = Math.min(Math.floor((event.clientY - box.top) / SCALE), board.height - 1);
+  if (x < 0) {
+    x = 0;
+  }
+  if (y < 0) {
+    y = 0;
+  }
+  board = board.mark(x, y);
+  board = board.computerMove();
+  display.draw(board);
+});
+document.querySelector('#new').addEventListener('click', newBoard);
+
+newBoard();
+</script>
+</body>
+
+</html>
