@@ -17,14 +17,14 @@ output {
 }
 pre {
   font-family: "Courier New", monospace;
-  font-size: 20px;
-  line-height: 20px;
+  font-size: 40px;
+  line-height: 40px;
   text-transform: full-width;
 }
 table {
   border-collapse: collapse;
-  font-size: 16px;
-  line-height: 16px;
+  font-size: 36px;
+  line-height: 36px;
   margin: 0;
   padding: 0;
   text-align: center;
@@ -33,8 +33,14 @@ td {
   background-color: white;
   border: 1px solid black;
   color: black;
-  height: 18px;
-  width: 18px;
+  height: 38px;
+  width: 38px;
+}
+.O {
+  color: red;
+}
+.X {
+  color: blue;
 }
   </style>
 </head>
@@ -55,9 +61,9 @@ td {
 
 <script>
 /*
- * Size in pixels of each cell.
+ * Size in pixels of each square.
  */
-const SCALE = 20;
+const SCALE = 40;
 
 const X_MARKER = 'X';
 const O_MARKER = 'O';
@@ -73,7 +79,11 @@ class Board {
     this.length = Math.max(2, length);
     this.playerMarker = player;
     this.computerMarker = computer;
+    this.playerWinCondition = this.playerMarker.repeat(this.length);
+    this.computerWinCondition = this.computerMarker.repeat(this.length);
 
+    this.playerWin = false;
+    this.computerWin = false;
     this.done = false;
   }
   coordinatesToIndex(x, y) {
@@ -94,7 +104,93 @@ class Board {
     }
     return this.cells[this.coordinatesToIndex(x, y)];
   }
-  mark(x, y, marker) {
+  get rows() {
+    let rows = [];
+    for (let i = 0; i < this.cells.length; i += this.width) {
+      rows.push(this.cells.slice(i, i + this.width).join('').toUpperCase());
+    }
+    return rows;
+  }
+  get columns() {
+    let columns = [];
+    for (let x = 0; x < this.width; x++) {
+      let column = [];
+      for (let y = 0; y < this.height; y++) {
+        column.push(this.get(x, y));
+      }
+      columns.push(column.join('').toUpperCase());
+    }
+    return columns;
+  }
+
+  /*
+   * Return the diagonal containing the square at (x, y).
+   *
+   * Defaults to the diagonal going to the bottom right.
+   * If toLeft is true, then return the diagonal going to the bottom left.
+   */
+  getDiagonal(x, y, toLeft = false) {
+    let limit = Math.min(this.width, this.height),
+        startX = 0,
+        startY = 0;
+    if (y <= 0) {
+      startX = x;
+    }
+    else {
+      if (toLeft) {
+        if (x >= (this.width - 1)) {
+          startX = this.width - 1;
+          startY = y;
+        }
+        else {
+          let delta = Math.min(this.width - 1 - x, y);
+          startX = x + delta;
+          startY = y - delta;
+        }
+      }
+      else {
+        if (x <= 0) {
+          startX = 0;
+          startY = y;
+        }
+        else {
+          let delta = Math.min(x, y);
+          startX = x - delta;
+          startY = y - delta;
+        }
+      }
+    }
+
+    let buffer = [],
+        currentX = 0,
+        currentY = 0;
+    for (let i = 0; i < limit; i++) {
+      if (toLeft) {
+        currentX = startX - i;
+      }
+      else {
+        currentX = startX + i;
+      }
+      currentY = startY + i;
+
+      if (currentX < 0) {
+        break;
+      }
+      if (currentY < 0) {
+        break;
+      }
+      if (currentX >= this.width) {
+        break;
+      }
+      if (currentY >= this.height) {
+        break;
+      }
+      buffer.push(this.get(currentX, currentY));
+    }
+    return buffer.join('').toUpperCase();
+  }
+
+  mark(x, y, computer = false) {
     if (x < 0) {
       return this;
     }
@@ -111,12 +207,13 @@ class Board {
       return this;
     }
 
-    if (marker != this.computerMarker) {
-      marker = this.playerMarker;
+    let board = new Board(this.width, this.height, this.length, this.playerMarker, this.computerMarker),
+        index = this.coordinatesToIndex(x, y),
+        marker = this.playerMarker;
+    if (computer) {
+      marker = this.computerMarker;
     }
 
-    let board = new Board(this.width, this.height, this.length, this.playerMarker, this.computerMarker),
-        index = this.coordinatesToIndex(x, y);
     board.cells = this.cells.slice();
     if (board.cells[index] == BLANK_MARKER) {
       board.cells[index] = marker;
@@ -125,10 +222,27 @@ class Board {
       return this;
     }
 
-    if (!board.cells.join('').includes(BLANK_MARKER)) {
-      // No more moves
-      board.done = true;
+    let directions = board.rows.concat(board.columns);
+    // Check the diagonals
+    for (let x = 0; x < board.width; x++) {
+      directions.push(board.getDiagonal(x, 0));
+      directions.push(board.getDiagonal(x, 0, true));
     }
+    for (let y = 1; y < board.height; y++) {
+      directions.push(board.getDiagonal(0, y));
+      directions.push(board.getDiagonal(board.width - 1, y, true));
+    }
+    for (let direction of directions) {
+      if (direction.includes(board.playerWinCondition)) {
+        board.playerWin = true;
+      }
+      if (direction.includes(board.computerWinCondition)) {
+        board.computerWin = true;
+      }
+    }
+
+    // Check if the player or the computer won or if any more moves are possible
+    board.done = board.playerWin || board.computerWin || (!board.cells.join('').includes(BLANK_MARKER));
 
     return board;
   }
@@ -145,111 +259,36 @@ class Board {
     if (y >= this.height) {
       return 0;
     }
-
-    let winCondition = this.computerMarker.repeat(this.length),
-        loseCondition = this.playerMarker.repeat(this.length),
-        score = 0,
-        buffer = [],
-        directions = [];
-
-    // Get the row
-    for (let i = 0; i < this.width; i++) {
-      if (i == x) {
-        buffer.push(TEST_MARKER);
-      }
-      else {
-        buffer.push(this.get(i, y));
-      }
+    if (this.get(x, y) != BLANK_MARKER) {
+      return 0;
     }
-    directions.push(buffer.join('').toUpperCase());
 
-    // Get the column
-    buffer = [];
-    for (let i = 0; i < this.height; i++) {
-      if (i == y) {
-        buffer.push(TEST_MARKER);
-      }
-      else {
-        buffer.push(this.get(x, i));
-      }
-    }
-    directions.push(buffer.join('').toUpperCase());
-
-    // Get the diagonal from (0, 0) to (width - 1, height - 1)
-    let limit = Math.max(this.width, this.height),
-        delta = Math.min(x, y),
-        startX = x - delta,
-        startY = y - delta;
-    buffer = [];
-    for (let i = 0; i < limit; i++) {
-      let currentX = startX + i,
-          currentY = startY + i;
-      if (currentX < 0) {
-        break;
-      }
-      if (currentY < 0) {
-        break;
-      }
-      if (currentX >= this.width) {
-        break;
-      }
-      if (currentY >= this.height) {
-        break;
-      }
-
-      if ((currentX == x) && (currentY == y)) {
-        buffer.push(TEST_MARKER);
-      }
-      else {
-        buffer.push(this.get(currentX, currentY));
-      }
-    }
-    directions.push(buffer.join('').toUpperCase());
-
-    // Get the diagonal from (0, width - 1) to (0, height - 1)
-    delta = Math.min(this.width - 1 - x, y);
-    startX = x + delta,
-    startY = y - delta;
-    buffer = [];
-    for (let i = 0; i < limit; i++) {
-      let currentX = startX - i,
-          currentY = startY + i;
-      if (currentX < 0) {
-        break;
-      }
-      if (currentY < 0) {
-        break;
-      }
-      if (currentX >= this.width) {
-        break;
-      }
-      if (currentY >= this.height) {
-        break;
-      }
-
-      if ((currentX == x) && (currentY == y)) {
-        buffer.push(TEST_MARKER);
-      }
-      else {
-        buffer.push(this.get(currentX, currentY));
-      }
-    }
-    directions.push(buffer.join('').toUpperCase());
+    let directions = [],
+        score = 0;
+    directions.push(Board.replaceCharAt(this.rows[y], x, TEST_MARKER));
+    directions.push(Board.replaceCharAt(this.columns[x], y, TEST_MARKER));
+    directions.push(Board.replaceCharAt(this.getDiagonal(x, y), Math.min(x, y), TEST_MARKER));
+    directions.push(Board.replaceCharAt(this.getDiagonal(x, y, true), Math.min(this.width - 1 - x, y), TEST_MARKER));
 
     for (let direction of directions) {
       let computerTake = direction.replace(TEST_MARKER, this.computerMarker),
           playerTake = direction.replace(TEST_MARKER, this.playerMarker);
-      //console.log('"' + direction + '"');
+      //console.log(x, y, '"' + direction + '"');
 
-      if (computerTake.includes(winCondition)) {
+      if (computerTake.includes(this.computerWinCondition)) {
         // If taking the spot results in a win, then prioritize this spot
         score += 1000;
       }
-      if (playerTake.includes(loseCondition)) {
+      if (playerTake.includes(this.playerWinCondition)) {
         // If the player taking the spot results in a win, then block it
         score += 100;
       }
-      if (!direction.includes(this.playerMarker)) {
+      if (direction.includes(this.playerMarker)) {
+        if (!direction.includes(this.computerMarker)) {
+          score += 1;
+        }
+      }
+      else {
         if (direction.length >= this.length) {
           if (direction.includes(this.computerMarker)) {
             // Try to continue runs
@@ -257,7 +296,7 @@ class Board {
           }
           else {
             // Start a run that is not blocked
-            score += 1;
+            score += 2;
           }
         }
       }
@@ -280,13 +319,309 @@ class Board {
     }
     // Sort descending by score
     scores.sort((a, b) => -(a.score - b.score));
-    return this.mark(scores[0].x, scores[0].y, this.computerMarker);
+    return this.mark(scores[0].x, scores[0].y, true);
+  }
+
+
+  /*
+   * Replace the character at str[index] with replacement.
+   */
+  static replaceCharAt(str, index, replacement) {
+    if (index < 0) {
+      return str;
+    }
+    if (str.length <= index) {
+      return str;
+    }
+    if (replacement.length > 1) {
+      replacement = replacement.substring(0, 1);
+    }
+    return str.substring(0, index) + replacement + str.substring(index + 1);
   }
 
   /*
    * A short test suite to confirm the Board class works.
    */
   static test() {
+    console.assert(Board.replaceCharAt('foo', -1, 'F') == 'foo',
+                   {msg: 'Board.replaceCharAt() is incorrect.'});
+    console.assert(Board.replaceCharAt('foo', 3, 'F') == 'foo',
+                   {msg: 'Board.replaceCharAt() is incorrect.'});
+    console.assert(Board.replaceCharAt('foo', 0, 'F') == 'Foo',
+                   {msg: 'Board.replaceCharAt() is incorrect.'});
+    console.assert(Board.replaceCharAt('foo', 0, 'b') == 'boo',
+                   {msg: 'Board.replaceCharAt() is incorrect.'});
+    console.assert(Board.replaceCharAt('foo', 2, 'b') == 'fob',
+                   {msg: 'Board.replaceCharAt() is incorrect.'});
+    console.assert(Board.replaceCharAt('foo', 0, 'ba') == 'boo',
+                   {msg: 'Board.replaceCharAt() is incorrect.'});
+    console.assert(Board.replaceCharAt('foo', 2, 'bar') == 'fob',
+                   {msg: 'Board.replaceCharAt() is incorrect.'});
+
+    let board = new Board(3, 4, 5, X_MARKER, O_MARKER);
+    console.assert(board.width == 3,
+                   {msg: 'board has wrong width.'});
+    console.assert(board.height == 4,
+                   {msg: 'board has wrong height.'});
+    console.assert(board.length == 5,
+                   {msg: 'board has wrong length.'});
+    console.assert(board.playerMarker == X_MARKER,
+                   {msg: 'board has wrong marker.'});
+    console.assert(board.computerMarker == O_MARKER,
+                   {msg: 'board has wrong marker.'});
+    console.assert(!board.playerWin,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(!board.computerWin,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(!board.done,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(board.cells.every(v => (v == BLANK_MARKER)),
+                   {msg: 'board.cells not initialized.'});
+    for (let x = -1; x <= board.width; x++) {
+      for (let y = -1; y <= board.height; y++) {
+        console.assert(board.get(x, y) == BLANK_MARKER,
+                       {msg: 'board.get() is incorrect.'});
+      }
+    }
+    console.assert(board.rows.length == 4,
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows.every(v => (v == BLANK_MARKER.repeat(3))),
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.columns.length == 3,
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns.every(v => (v == BLANK_MARKER.repeat(4))),
+                   {msg: 'board.columns is incorrect.'});
+
+    board = new Board(3, 3, 3, O_MARKER, X_MARKER);
+    console.assert(board.width == 3,
+                   {msg: 'board has wrong width.'});
+    console.assert(board.height == 3,
+                   {msg: 'board has wrong height.'});
+    console.assert(board.length == 3,
+                   {msg: 'board has wrong length.'});
+    console.assert(board.playerMarker == O_MARKER,
+                   {msg: 'board has wrong marker.'});
+    console.assert(board.computerMarker == X_MARKER,
+                   {msg: 'board has wrong marker.'});
+    console.assert(!board.playerWin,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(!board.computerWin,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(!board.done,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(board.cells.every(v => (v == BLANK_MARKER)),
+                   {msg: 'board.cells not initialized.'});
+    for (let x = -1; x <= board.width; x++) {
+      for (let y = -1; y <= board.height; y++) {
+        console.assert(board.get(x, y) == BLANK_MARKER,
+                       {msg: 'board.get() is incorrect.'});
+      }
+    }
+    console.assert(board.rows.length == 3,
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows.every(v => (v == BLANK_MARKER.repeat(3))),
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.columns.length == 3,
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns.every(v => (v == BLANK_MARKER.repeat(3))),
+                   {msg: 'board.columns is incorrect.'});
+    board.cells[0] = O_MARKER;
+    board.cells[4] = X_MARKER;
+    console.assert(board.cells.join('') == 'O   X    ',
+                   {msg: 'board.cells is incorrect.'});
+    for (let x = -1; x <= board.width; x++) {
+      let expected = BLANK_MARKER;
+      for (let y = -1; y <= board.height; y++) {
+        if ((x == 0) && (y == 0)) {
+          expected = O_MARKER;
+        }
+        else if ((x == 1) && (y == 1)) {
+          expected = X_MARKER;
+        }
+        else {
+          expected = BLANK_MARKER;
+        }
+        console.assert(board.get(x, y) == expected,
+                       {msg: 'board.get() is incorrect.'});
+      }
+    }
+    console.assert(board.rows.length == 3,
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[0] == 'O  ',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[1] == ' X ',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[2] == '   ',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.columns.length == 3,
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[0] == 'O  ',
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[1] == ' X ',
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[2] == '   ',
+                   {msg: 'board.columns is incorrect.'});
+    for (let [x, y, expected] of [
+      [0, 0, 'OX '],
+      [1, 0, '  '],
+      [2, 0, ' '],
+      [0, 1, '  '],
+      [1, 1, 'OX '],
+      [2, 1, '  '],
+      [0, 2, ' '],
+      [1, 2, '  '],
+      [2, 2, 'OX ']]) {
+      console.assert(board.getDiagonal(x, y) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+      console.assert(board.getDiagonal(x, y, false) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+    }
+    for (let [x, y, expected] of [
+      [0, 0, 'O'],
+      [1, 0, '  '],
+      [2, 0, ' X '],
+      [0, 1, '  '],
+      [1, 1, ' X '],
+      [2, 1, '  '],
+      [0, 2, ' X '],
+      [1, 2, '  '],
+      [2, 2, ' ']]) {
+      console.assert(board.getDiagonal(x, y, true) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+    }
+    console.assert(board.score(0, 0) == 0,
+                   {msg: 'board.score() is incorrect.'});
+    console.assert(board.score(1, 1) == 0,
+                   {msg: 'board.score() is incorrect.'});
+    console.assert(board.score(1, 0) == 11,
+                   {msg: 'board.score() is incorrect.'});
+    console.assert(board.score(2, 0) == 13,
+                   {msg: 'board.score() is incorrect.'});
+    console.assert(board.score(1, 2) == 12,
+                   {msg: 'board.score() is incorrect.'});
+
+    console.assert(board.mark(-1, 0, false) == board,
+                   {msg: 'board.mark() is incorrect.'});
+    console.assert(board.mark(0, 0, false) == board,
+                   {msg: 'board.mark() is incorrect.'});
+    console.assert(board.mark(0, -1, false) == board,
+                   {msg: 'board.mark() is incorrect.'});
+    console.assert(board.mark(1, 1, true) == board,
+                   {msg: 'board.mark() is incorrect.'});
+    console.assert(board.mark(board.width, 0, false) == board,
+                   {msg: 'board.mark() is incorrect.'});
+    console.assert(board.mark(0, board.height, false) == board,
+                   {msg: 'board.mark() is incorrect.'});
+
+    board = board.mark(2, 0, true);
+    board = board.mark(0, 2, false);
+    console.assert(!board.playerWin,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(!board.computerWin,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(!board.done,
+                   {msg: 'board unexpectedly done.'});
+    console.assert(board.cells.join('') == 'O X X O  ',
+                   {msg: 'board.cells is incorrect.'});
+    console.assert(board.rows.length == 3,
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[0] == 'O X',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[1] == ' X ',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[2] == 'O  ',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.columns.length == 3,
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[0] == 'O O',
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[1] == ' X ',
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[2] == 'X  ',
+                   {msg: 'board.columns is incorrect.'});
+    for (let [x, y, expected] of [
+      [0, 0, 'OX '],
+      [1, 0, '  '],
+      [2, 0, 'X'],
+      [0, 1, '  '],
+      [1, 1, 'OX '],
+      [2, 1, '  '],
+      [0, 2, 'O'],
+      [1, 2, '  '],
+      [2, 2, 'OX ']]) {
+      console.assert(board.getDiagonal(x, y) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+      console.assert(board.getDiagonal(x, y, false) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+    }
+    for (let [x, y, expected] of [
+      [0, 0, 'O'],
+      [1, 0, '  '],
+      [2, 0, 'XXO'],
+      [0, 1, '  '],
+      [1, 1, 'XXO'],
+      [2, 1, '  '],
+      [0, 2, 'XXO'],
+      [1, 2, '  '],
+      [2, 2, ' ']]) {
+      console.assert(board.getDiagonal(x, y, true) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+    }
+
+    board = board.mark(2, 1, true);
+    board = board.mark(0, 1, false);
+    console.assert(board.cells.join('') == 'O XOXXO  ',
+                   {msg: 'board.cells is incorrect.'});
+    console.assert(board.playerWin,
+                   {msg: 'board unexpectedly not done.'});
+    console.assert(!board.computerWin,
+                   {msg: 'board unexpectedly not done.'});
+    console.assert(board.done,
+                   {msg: 'board unexpectedly not done.'});
+    console.assert(board.rows.length == 3,
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[0] == 'O X',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[1] == 'OXX',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.rows[2] == 'O  ',
+                   {msg: 'board.rows is incorrect.'});
+    console.assert(board.columns.length == 3,
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[0] == 'OOO',
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[1] == ' X ',
+                   {msg: 'board.columns is incorrect.'});
+    console.assert(board.columns[2] == 'XX ',
+                   {msg: 'board.columns is incorrect.'});
+    for (let [x, y, expected] of [
+      [0, 0, 'OX '],
+      [1, 0, ' X'],
+      [2, 0, 'X'],
+      [0, 1, 'O '],
+      [1, 1, 'OX '],
+      [2, 1, ' X'],
+      [0, 2, 'O'],
+      [1, 2, 'O '],
+      [2, 2, 'OX ']]) {
+      console.assert(board.getDiagonal(x, y) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+      console.assert(board.getDiagonal(x, y, false) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+    }
+    for (let [x, y, expected] of [
+      [0, 0, 'O'],
+      [1, 0, ' O'],
+      [2, 0, 'XXO'],
+      [0, 1, ' O'],
+      [1, 1, 'XXO'],
+      [2, 1, 'X '],
+      [0, 2, 'XXO'],
+      [1, 2, 'X '],
+      [2, 2, ' ']]) {
+      console.assert(board.getDiagonal(x, y, true) == expected,
+                     {msg: 'board.getDiagonal() is incorrect.'});
+    }
   }
 }
 Board.test();
@@ -304,7 +639,7 @@ class Display {
     this.marker = marker;
   }
   draw(board) {
-    this.marker.textContent = 'Player: ' + board.playerMarker + ' Computer: ' + board.computerMarker;
+    this.marker.innerHTML = `Player: <span class="${board.playerMarker}">${board.playerMarker}</span> Computer: <span class="${board.computerMarker}">${board.computerMarker}</span>`;
   }
 }
 
@@ -317,16 +652,7 @@ class ASCIIDisplay extends Display {
       target = document.createElement('pre');
       this.parent.appendChild(target);
     }
-
-    let rows = [];
-    for (let y = 0; y < board.height; y++) {
-      let row = [];
-      for (let x = 0; x < board.width; x++) {
-        row.push(board.get(x, y));
-      }
-      rows.push(row.join(''));
-    }
-    target.textContent = rows.join('\n');
+    target.textContent = board.rows.join('\n');
   }
 }
 
@@ -348,22 +674,33 @@ class CanvasDisplay extends Display {
     }
 
     let context = target.getContext('2d');
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.strokeStyle = '#000000';
-
     context.clearRect(0, 0, width, height);
+
+    context.lineWidth = 5;
     for (let y = 0; y < board.height; y++) {
       for (let x = 0; x < board.width; x++) {
         let marker = board.get(x, y);
-        if ((marker == board.playerMarker) || (marker == board.computerMarker)) {
-          context.fillStyle = '#000000';
-          context.fillText(marker, (x * SCALE) + middle, (y * SCALE) + middle);
+        if (marker == X_MARKER) {
+          context.strokeStyle = '#0000FF';
+          context.beginPath();
+          context.moveTo((x * SCALE) + 5, (y * SCALE) + 5);
+          context.lineTo(((x + 1) * SCALE) - 5, ((y + 1) * SCALE) - 5);
+          context.moveTo(((x + 1) * SCALE) - 5, (y * SCALE) + 5);
+          context.lineTo((x * SCALE) + 5, ((y + 1) * SCALE) - 5);
+          context.stroke();
+        }
+        if (marker == O_MARKER) {
+          context.strokeStyle = '#FF0000';
+          context.beginPath();
+          context.arc((x * SCALE) + middle, (y * SCALE) + middle, middle - 5, 0, 2 * Math.PI);
+          context.stroke();
         }
       }
     }
 
     // Draw grid lines
+    context.lineWidth = 1;
+    context.strokeStyle = '#000000';
     for (let x = 1; x < board.width; x++) {
       context.beginPath();
       context.moveTo(x * SCALE, 0);
@@ -394,8 +731,8 @@ class TableDisplay extends Display {
       let row = [];
       row.push('  <tr>');
       for (let x = 0; x < board.width; x++) {
-        let cell = '    <td>' + board.get(x, y) + '</td>';
-        row.push(cell);
+        let marker = board.get(x, y);
+        row.push(`    <td class="${marker}">${marker}</td>`);
       }
       row.push('  </tr>');
       rows.push(row.join('\n'));
@@ -428,7 +765,8 @@ size.addEventListener('change', newBoard);
 output.addEventListener('click', (event) => {
   let box = output.getBoundingClientRect(),
       x = Math.min(Math.floor((event.clientX - box.left) / SCALE), board.width - 1),
-      y = Math.min(Math.floor((event.clientY - box.top) / SCALE), board.height - 1);
+      y = Math.min(Math.floor((event.clientY - box.top) / SCALE), board.height - 1),
+      previous = board;
   if (x < 0) {
     x = 0;
   }
@@ -436,8 +774,21 @@ output.addEventListener('click', (event) => {
     y = 0;
   }
   board = board.mark(x, y);
-  board = board.computerMove();
-  display.draw(board);
+  if (board != previous) {
+    // If the player actually changed the board (didn't click on an occupied square)
+    board = board.computerMove();
+
+    display.draw(board);
+    if (board.playerWin) {
+      alert('You won!');
+    }
+    else if (board.computerWin) {
+      alert('You lost!');
+    }
+    else if (board.done) {
+      alert('You tied.');
+    }
+  }
 });
 document.querySelector('#new').addEventListener('click', newBoard);
 
