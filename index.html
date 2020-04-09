@@ -74,7 +74,7 @@ class Board {
   constructor(width, height, length, player, computer) {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
-    this.cells = new Array(this.width * this.height).fill(BLANK_MARKER);
+    this.cells = BLANK_MARKER.repeat(this.width * this.height);
 
     this.length = Math.max(2, length);
     this.playerMarker = player;
@@ -102,12 +102,12 @@ class Board {
     if (y >= this.height) {
       return BLANK_MARKER;
     }
-    return this.cells[this.coordinatesToIndex(x, y)];
+    return this.cells.charAt(this.coordinatesToIndex(x, y));
   }
   get rows() {
     let rows = [];
     for (let i = 0; i < this.cells.length; i += this.width) {
-      rows.push(this.cells.slice(i, i + this.width).join('').toUpperCase());
+      rows.push(this.cells.substring(i, i + this.width).toUpperCase());
     }
     return rows;
   }
@@ -214,9 +214,8 @@ class Board {
       marker = this.computerMarker;
     }
 
-    board.cells = this.cells.slice();
-    if (board.cells[index] == BLANK_MARKER) {
-      board.cells[index] = marker;
+    if (this.cells.charAt(index) == BLANK_MARKER) {
+      board.cells = Board.replaceCharAt(this.cells, index, marker);
     }
     else {
       return this;
@@ -242,7 +241,7 @@ class Board {
     }
 
     // Check if the player or the computer won or if any more moves are possible
-    board.done = board.playerWin || board.computerWin || (!board.cells.join('').includes(BLANK_MARKER));
+    board.done = board.playerWin || board.computerWin || (!board.cells.includes(BLANK_MARKER));
 
     return board;
   }
@@ -375,7 +374,7 @@ class Board {
                    {msg: 'board unexpectedly done.'});
     console.assert(!board.done,
                    {msg: 'board unexpectedly done.'});
-    console.assert(board.cells.every(v => (v == BLANK_MARKER)),
+    console.assert(board.cells == BLANK_MARKER.repeat(12),
                    {msg: 'board.cells not initialized.'});
     for (let x = -1; x <= board.width; x++) {
       for (let y = -1; y <= board.height; y++) {
@@ -409,7 +408,7 @@ class Board {
                    {msg: 'board unexpectedly done.'});
     console.assert(!board.done,
                    {msg: 'board unexpectedly done.'});
-    console.assert(board.cells.every(v => (v == BLANK_MARKER)),
+    console.assert(board.cells == BLANK_MARKER.repeat(9),
                    {msg: 'board.cells not initialized.'});
     for (let x = -1; x <= board.width; x++) {
       for (let y = -1; y <= board.height; y++) {
@@ -425,9 +424,9 @@ class Board {
                    {msg: 'board.columns is incorrect.'});
     console.assert(board.columns.every(v => (v == BLANK_MARKER.repeat(3))),
                    {msg: 'board.columns is incorrect.'});
-    board.cells[0] = O_MARKER;
-    board.cells[4] = X_MARKER;
-    console.assert(board.cells.join('') == 'O   X    ',
+    board.cells = Board.replaceCharAt(board.cells, 0, O_MARKER);
+    board.cells = Board.replaceCharAt(board.cells, 4, X_MARKER);
+    console.assert(board.cells == 'O   X    ',
                    {msg: 'board.cells is incorrect.'});
     for (let x = -1; x <= board.width; x++) {
       let expected = BLANK_MARKER;
@@ -521,7 +520,7 @@ class Board {
                    {msg: 'board unexpectedly done.'});
     console.assert(!board.done,
                    {msg: 'board unexpectedly done.'});
-    console.assert(board.cells.join('') == 'O X X O  ',
+    console.assert(board.cells == 'O X X O  ',
                    {msg: 'board.cells is incorrect.'});
     console.assert(board.rows.length == 3,
                    {msg: 'board.rows is incorrect.'});
@@ -570,7 +569,7 @@ class Board {
 
     board = board.mark(2, 1, true);
     board = board.mark(0, 1, false);
-    console.assert(board.cells.join('') == 'O XOXXO  ',
+    console.assert(board.cells == 'O XOXXO  ',
                    {msg: 'board.cells is incorrect.'});
     console.assert(board.playerWin,
                    {msg: 'board unexpectedly not done.'});
