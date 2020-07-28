@@ -70,12 +70,15 @@ const O_MARKER = 'O';
 const BLANK_MARKER = ' ';
 const TEST_MARKER = '?';
 
+/*
+ * Set of valid strings in a board state.
+ */
+const STATE_SET = new Set([X_MARKER, O_MARKER, BLANK_MARKER]);
+
 class Board {
-  constructor(width, height, length, player, computer) {
+  constructor(width, height, length, player, computer, state) {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
-    this.cells = BLANK_MARKER.repeat(this.width * this.height);
-
     this.length = Math.max(2, length);
     this.playerMarker = player;
     this.computerMarker = computer;
@@ -85,6 +88,37 @@ class Board {
     this.playerWin = false;
     this.computerWin = false;
     this.done = false;
+
+    if ((!Board.is_valid_state(state)) ||
+        (state.length != (this.width * this.height))) {
+      // If state is invalid or not long enough
+      this.cells = BLANK_MARKER.repeat(this.width * this.height);
+    }
+    else {
+      this.cells = state.toUpperCase();
+
+      let directions = this.rows.concat(this.columns);
+      // Check the diagonals
+      for (let x = 0; x < this.width; x++) {
+        directions.push(this.getDiagonal(x, 0));
+        directions.push(this.getDiagonal(x, 0, true));
+      }
+      for (let y = 1; y < this.height; y++) {
+        directions.push(this.getDiagonal(0, y));
+        directions.push(this.getDiagonal(this.width - 1, y, true));
+      }
+      for (let direction of directions) {
+        if (direction.includes(this.playerWinCondition)) {
+          this.playerWin = true;
+        }
+        if (direction.includes(this.computerWinCondition)) {
+          this.computerWin = true;
+        }
+      }
+
+      // Check if the player or the computer won or if any more moves are possible
+      this.done = this.playerWin || this.computerWin || (!this.cells.includes(BLANK_MARKER));
+    }
   }
   coordinatesToIndex(x, y) {
     return x + (y * this.width);
@@ -207,43 +241,19 @@ class Board {
       return this;
     }
 
-    let board = new Board(this.width, this.height, this.length, this.playerMarker, this.computerMarker),
-        index = this.coordinatesToIndex(x, y),
+    let index = this.coordinatesToIndex(x, y),
         marker = this.playerMarker;
     if (computer) {
       marker = this.computerMarker;
     }
 
     if (this.cells.charAt(index) == BLANK_MARKER) {
-      board.cells = Board.replaceCharAt(this.cells, index, marker);
+      return new Board(this.width, this.height, this.length, this.playerMarker, this.computerMarker,
+                       Board.replaceCharAt(this.cells, index, marker));
     }
     else {
       return this;
     }
-
-    let directions = board.rows.concat(board.columns);
-    // Check the diagonals
-    for (let x = 0; x < board.width; x++) {
-      directions.push(board.getDiagonal(x, 0));
-      directions.push(board.getDiagonal(x, 0, true));
-    }
-    for (let y = 1; y < board.height; y++) {
-      directions.push(board.getDiagonal(0, y));
-      directions.push(board.getDiagonal(board.width - 1, y, true));
-    }
-    for (let direction of directions) {
-      if (direction.includes(board.playerWinCondition)) {
-        board.playerWin = true;
-      }
-      if (direction.includes(board.computerWinCondition)) {
-        board.computerWin = true;
-      }
-    }
-
-    // Check if the player or the computer won or if any more moves are possible
-    board.done = board.playerWin || board.computerWin || (!board.cells.includes(BLANK_MARKER));
-
-    return board;
   }
   score(x, y) {
     if (x < 0) {
@@ -308,19 +318,130 @@ class Board {
       return this;
     }
 
-    let scores = [];
+    let scores = [],
+        loss = null;
     for (let x = 0; x < this.width; x++) {
       for (let y = 0; y < this.height; y++) {
         if (this.get(x, y) == BLANK_MARKER) {
-          scores.push({x: x, y: y, score: this.score(x, y)});
+          let index = this.coordinatesToIndex(x, y),
+              playerBoard = new Board(this.width, this.height, this.length, this.playerMarker, this.computerMarker,
+                                      Board.replaceCharAt(this.cells, index, this.playerMarker)),
+              computerBoard = new Board(this.width, this.height, this.length, this.playerMarker, this.computerMarker,
+                                        Board.replaceCharAt(this.cells, index, this.computerMarker));
+          if (computerBoard.computerWin) {
+            // If this move results in a win, then make it immediately
+            return this.mark(x, y, true);
+          }
+          if (playerBoard.playerWin) {
+            // If letting player have this move results in a loss, then remember to block it
+            // We don't make the move immediately in case we find a winning move later
+            loss = {x: x, y: y};
+          }
+          else if (loss == null) {
+            // Only lookahead if we don't need to block
+            let [O_count, X_count, draw_count] = Board.lookahead(computerBoard, this.playerMarker);
+            if (this.computerMarker == O_MARKER) {
+              scores.push({losses: X_count, wins: O_count, x: x, y: y});
+            }
+            else {
+              scores.push({losses: O_count, wins: X_count, x: x, y: y});
+            }
+          }
         }
       }
     }
-    // Sort descending by score
-    scores.sort((a, b) => -(a.score - b.score));
+
+    if (loss != null) {
+      // Block player to prevent a loss
+      return this.mark(loss.x, loss.y, true);
+    }
+
+    // Fallback to the best move according to minimax
+    scores.sort(function (a, b) {
+      // Sort ascending by losses (min)
+      if (a.losses < b.losses) {
+        return -1;
+      }
+      else if (a.losses > b.losses) {
+        return 1;
+      }
+      else {
+        // If losses are equal, then sort descending by wins (max)
+        if (a.wins < b.wins) {
+          return 1;
+        }
+        else if (a.wins > b.wins) {
+          return -1;
+        }
+        else {
+          return 0;
+        }
+      }
+    });
     return this.mark(scores[0].x, scores[0].y, true);
   }
 
+
+  /*
+   * Return true if state is a valid board state.
+   */
+  static is_valid_state(state) {
+    if (typeof state == 'string') {
+      for (let c of Array.from(state)) {
+        if (!STATE_SET.has(c)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /*
+   * Lookahead to all possible moves and return the number of wins for each marker.
+   */
+  static lookahead(board, marker) {
+    if (board.playerWin) {
+      if (board.playerMarker == O_MARKER) {
+        return [1, 0, 0];
+      }
+      else {
+        return [0, 1, 0];
+      }
+    }
+    if (board.computerWin) {
+      if (board.computerMarker == O_MARKER) {
+        return [1, 0, 0];
+      }
+      else {
+        return [0, 1, 0];
+      }
+    }
+    if (board.done) {
+      return [0, 0, 1];
+    }
+
+    // At this point, the board must have an empty space
+    let opposing = O_MARKER,
+        O_total = 0,
+        X_total = 0,
+        draw_total = 0;
+    if (marker == O_MARKER) {
+      opposing = X_MARKER;
+    }
+    for (let i = 0; i < board.cells.length; i++) {
+      let c = board.cells.charAt(i);
+      if (c == BLANK_MARKER) {
+        let move = new Board(board.width, board.height, board.length, board.playerMarker, board.computerMarker,
+                             Board.replaceCharAt(board.cells, i, marker)),
+            [O_count, X_count, draw_count] = Board.lookahead(move, opposing);
+        O_total += O_count;
+        X_total += X_count;
+        draw_total += draw_count;
+      }
+    }
+    return [O_total, X_total, draw_total];
+  }
 
   /*
    * Replace the character at str[index] with replacement.
@@ -342,6 +463,66 @@ class Board {
    * A short test suite to confirm the Board class works.
    */
   static test() {
+    console.assert(!Board.is_valid_state(null),
+                   {msg: 'Board.is_valid_state() failed.'});
+    console.assert(!Board.is_valid_state(undefined),
+                   {msg: 'Board.is_valid_state() failed.'});
+    console.assert(!Board.is_valid_state('foobar'),
+                   {msg: 'Board.is_valid_state() failed.'});
+    console.assert(!Board.is_valid_state(`foobar`),
+                   {msg: 'Board.is_valid_state() failed.'});
+    console.assert(!Board.is_valid_state('foo bar'),
+                   {msg: 'Board.is_valid_state() failed.'});
+    console.assert(Board.is_valid_state(''),
+                   {msg: 'Board.is_valid_state() failed.'});
+    console.assert(Board.is_valid_state('X O'),
+                   {msg: 'Board.is_valid_state() failed.'});
+    console.assert(Board.is_valid_state('XOXO'),
+                   {msg: 'Board.is_valid_state() failed.'});
+    console.assert(Board.is_valid_state(`XO XO`),
+                   {msg: 'Board.is_valid_state() failed.'});
+
+    for (let values of [
+      Board.lookahead(new Board(3, 3, 3, X_MARKER, O_MARKER, 'X        '), O_MARKER),
+      Board.lookahead(new Board(3, 3, 3, X_MARKER, O_MARKER, '  X      '), O_MARKER),
+      Board.lookahead(new Board(3, 3, 3, X_MARKER, O_MARKER, '      X  '), O_MARKER),
+      Board.lookahead(new Board(3, 3, 3, X_MARKER, O_MARKER, '        X'), O_MARKER)]) {
+      console.assert(values[0] == 7896,
+                     {msg: 'Board.lookahead() failed.'});
+      console.assert(values[1] == 14652,
+                     {msg: 'Board.lookahead() failed.'});
+      console.assert(values[2] == 5184,
+                     {msg: 'Board.lookahead() failed.'});
+    }
+    let values = Board.lookahead(new Board(3, 3, 3, X_MARKER, O_MARKER, '    X    '), O_MARKER);
+    console.assert(values[0] == 5616,
+                   {msg: 'Board.lookahead() failed.'});
+    console.assert(values[1] == 15648,
+                   {msg: 'Board.lookahead() failed.'});
+    console.assert(values[2] == 4608,
+                   {msg: 'Board.lookahead() failed.'});
+    values = Board.lookahead(new Board(3, 3, 3, X_MARKER, O_MARKER, 'OOO X    '), O_MARKER);
+    console.assert(values[0] == 1,
+                   {msg: 'Board.lookahead() failed.'});
+    console.assert(values[1] == 0,
+                   {msg: 'Board.lookahead() failed.'});
+    console.assert(values[2] == 0,
+                   {msg: 'Board.lookahead() failed.'});
+    values = Board.lookahead(new Board(3, 3, 3, X_MARKER, O_MARKER, 'OO XXX   '), O_MARKER);
+    console.assert(values[0] == 0,
+                   {msg: 'Board.lookahead() failed.'});
+    console.assert(values[1] == 1,
+                   {msg: 'Board.lookahead() failed.'});
+    console.assert(values[2] == 0,
+                   {msg: 'Board.lookahead() failed.'});
+    values = Board.lookahead(new Board(3, 3, 3, X_MARKER, O_MARKER, 'OXXXXOOOX'), O_MARKER);
+    console.assert(values[0] == 0,
+                   {msg: 'Board.lookahead() failed.'});
+    console.assert(values[1] == 0,
+                   {msg: 'Board.lookahead() failed.'});
+    console.assert(values[2] == 1,
+                   {msg: 'Board.lookahead() failed.'});
+
     console.assert(Board.replaceCharAt('foo', -1, 'F') == 'foo',
                    {msg: 'Board.replaceCharAt() failed.'});
     console.assert(Board.replaceCharAt('foo', 3, 'F') == 'foo',
@@ -357,41 +538,46 @@ class Board {
     console.assert(Board.replaceCharAt('foo', 2, 'bar') == 'fob',
                    {msg: 'Board.replaceCharAt() failed.'});
 
-    let board = new Board(3, 4, 5, X_MARKER, O_MARKER);
-    console.assert(board.width == 3,
-                   {msg: 'board has wrong width.'});
-    console.assert(board.height == 4,
-                   {msg: 'board has wrong height.'});
-    console.assert(board.length == 5,
-                   {msg: 'board has wrong length.'});
-    console.assert(board.playerMarker == X_MARKER,
-                   {msg: 'board has wrong marker.'});
-    console.assert(board.computerMarker == O_MARKER,
-                   {msg: 'board has wrong marker.'});
-    console.assert(!board.playerWin,
-                   {msg: 'board unexpectedly done.'});
-    console.assert(!board.computerWin,
-                   {msg: 'board unexpectedly done.'});
-    console.assert(!board.done,
-                   {msg: 'board unexpectedly done.'});
-    console.assert(board.cells == BLANK_MARKER.repeat(12),
-                   {msg: 'board.cells not initialized.'});
-    for (let x = -1; x <= board.width; x++) {
-      for (let y = -1; y <= board.height; y++) {
-        console.assert(board.get(x, y) == BLANK_MARKER,
-                       {msg: 'board.get() failed.'});
+    for (let board of [
+      new Board(3, 4, 5, X_MARKER, O_MARKER),
+      new Board(3, 4, 5, X_MARKER, O_MARKER, ''),
+      new Board(3, 4, 5, X_MARKER, O_MARKER, 'foobar baz'),
+      new Board(3, 4, 5, X_MARKER, O_MARKER, 'XOXO')]) {
+      console.assert(board.width == 3,
+                     {msg: 'board has wrong width.'});
+      console.assert(board.height == 4,
+                     {msg: 'board has wrong height.'});
+      console.assert(board.length == 5,
+                     {msg: 'board has wrong length.'});
+      console.assert(board.playerMarker == X_MARKER,
+                     {msg: 'board has wrong marker.'});
+      console.assert(board.computerMarker == O_MARKER,
+                     {msg: 'board has wrong marker.'});
+      console.assert(!board.playerWin,
+                     {msg: 'board unexpectedly done.'});
+      console.assert(!board.computerWin,
+                     {msg: 'board unexpectedly done.'});
+      console.assert(!board.done,
+                     {msg: 'board unexpectedly done.'});
+      console.assert(board.cells == BLANK_MARKER.repeat(12),
+                     {msg: 'board.cells not initialized.'});
+      for (let x = -1; x <= board.width; x++) {
+        for (let y = -1; y <= board.height; y++) {
+          console.assert(board.get(x, y) == BLANK_MARKER,
+                         {msg: 'board.get() failed.'});
+        }
       }
+      console.assert(board.rows.length == 4,
+                     {msg: 'board.rows is incorrect.'});
+      console.assert(board.rows.every(v => (v == BLANK_MARKER.repeat(3))),
+                     {msg: 'board.rows is incorrect.'});
+      console.assert(board.columns.length == 3,
+                     {msg: 'board.columns is incorrect.'});
+      console.assert(board.columns.every(v => (v == BLANK_MARKER.repeat(4))),
+                     {msg: 'board.columns is incorrect.'});
     }
-    console.assert(board.rows.length == 4,
-                   {msg: 'board.rows is incorrect.'});
-    console.assert(board.rows.every(v => (v == BLANK_MARKER.repeat(3))),
-                   {msg: 'board.rows is incorrect.'});
-    console.assert(board.columns.length == 3,
-                   {msg: 'board.columns is incorrect.'});
-    console.assert(board.columns.every(v => (v == BLANK_MARKER.repeat(4))),
-                   {msg: 'board.columns is incorrect.'});
 
-    board = new Board(3, 3, 3, O_MARKER, X_MARKER);
+    let board = new Board(3, 3, 3, O_MARKER, X_MARKER);
     console.assert(board.width == 3,
                    {msg: 'board has wrong width.'});
     console.assert(board.height == 3,
