@@ -343,19 +343,19 @@ class Board {
    */
   static test() {
     console.assert(Board.replaceCharAt('foo', -1, 'F') == 'foo',
-                   {msg: 'Board.replaceCharAt() is incorrect.'});
+                   {msg: 'Board.replaceCharAt() failed.'});
     console.assert(Board.replaceCharAt('foo', 3, 'F') == 'foo',
-                   {msg: 'Board.replaceCharAt() is incorrect.'});
+                   {msg: 'Board.replaceCharAt() failed.'});
     console.assert(Board.replaceCharAt('foo', 0, 'F') == 'Foo',
-                   {msg: 'Board.replaceCharAt() is incorrect.'});
+                   {msg: 'Board.replaceCharAt() failed.'});
     console.assert(Board.replaceCharAt('foo', 0, 'b') == 'boo',
-                   {msg: 'Board.replaceCharAt() is incorrect.'});
+                   {msg: 'Board.replaceCharAt() failed.'});
     console.assert(Board.replaceCharAt('foo', 2, 'b') == 'fob',
-                   {msg: 'Board.replaceCharAt() is incorrect.'});
+                   {msg: 'Board.replaceCharAt() failed.'});
     console.assert(Board.replaceCharAt('foo', 0, 'ba') == 'boo',
-                   {msg: 'Board.replaceCharAt() is incorrect.'});
+                   {msg: 'Board.replaceCharAt() failed.'});
     console.assert(Board.replaceCharAt('foo', 2, 'bar') == 'fob',
-                   {msg: 'Board.replaceCharAt() is incorrect.'});
+                   {msg: 'Board.replaceCharAt() failed.'});
 
     let board = new Board(3, 4, 5, X_MARKER, O_MARKER);
     console.assert(board.width == 3,
@@ -379,7 +379,7 @@ class Board {
     for (let x = -1; x <= board.width; x++) {
       for (let y = -1; y <= board.height; y++) {
         console.assert(board.get(x, y) == BLANK_MARKER,
-                       {msg: 'board.get() is incorrect.'});
+                       {msg: 'board.get() failed.'});
       }
     }
     console.assert(board.rows.length == 4,
@@ -413,7 +413,7 @@ class Board {
     for (let x = -1; x <= board.width; x++) {
       for (let y = -1; y <= board.height; y++) {
         console.assert(board.get(x, y) == BLANK_MARKER,
-                       {msg: 'board.get() is incorrect.'});
+                       {msg: 'board.get() failed.'});
       }
     }
     console.assert(board.rows.length == 3,
@@ -441,7 +441,7 @@ class Board {
           expected = BLANK_MARKER;
         }
         console.assert(board.get(x, y) == expected,
-                       {msg: 'board.get() is incorrect.'});
+                       {msg: 'board.get() failed.'});
       }
     }
     console.assert(board.rows.length == 3,
@@ -471,9 +471,9 @@ class Board {
       [1, 2, '  '],
       [2, 2, 'OX ']]) {
       console.assert(board.getDiagonal(x, y) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
       console.assert(board.getDiagonal(x, y, false) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
     }
     for (let [x, y, expected] of [
       [0, 0, 'O'],
@@ -486,31 +486,31 @@ class Board {
       [1, 2, '  '],
       [2, 2, ' ']]) {
       console.assert(board.getDiagonal(x, y, true) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
     }
     console.assert(board.score(0, 0) == 0,
-                   {msg: 'board.score() is incorrect.'});
+                   {msg: 'board.score() failed.'});
     console.assert(board.score(1, 1) == 0,
-                   {msg: 'board.score() is incorrect.'});
+                   {msg: 'board.score() failed.'});
     console.assert(board.score(1, 0) == 11,
-                   {msg: 'board.score() is incorrect.'});
+                   {msg: 'board.score() failed.'});
     console.assert(board.score(2, 0) == 13,
-                   {msg: 'board.score() is incorrect.'});
+                   {msg: 'board.score() failed.'});
     console.assert(board.score(1, 2) == 12,
-                   {msg: 'board.score() is incorrect.'});
+                   {msg: 'board.score() failed.'});
 
     console.assert(board.mark(-1, 0, false) == board,
-                   {msg: 'board.mark() is incorrect.'});
+                   {msg: 'board.mark() failed.'});
     console.assert(board.mark(0, 0, false) == board,
-                   {msg: 'board.mark() is incorrect.'});
+                   {msg: 'board.mark() failed.'});
     console.assert(board.mark(0, -1, false) == board,
-                   {msg: 'board.mark() is incorrect.'});
+                   {msg: 'board.mark() failed.'});
     console.assert(board.mark(1, 1, true) == board,
-                   {msg: 'board.mark() is incorrect.'});
+                   {msg: 'board.mark() failed.'});
     console.assert(board.mark(board.width, 0, false) == board,
-                   {msg: 'board.mark() is incorrect.'});
+                   {msg: 'board.mark() failed.'});
     console.assert(board.mark(0, board.height, false) == board,
-                   {msg: 'board.mark() is incorrect.'});
+                   {msg: 'board.mark() failed.'});
 
     board = board.mark(2, 0, true);
     board = board.mark(0, 2, false);
@@ -549,9 +549,9 @@ class Board {
       [1, 2, '  '],
       [2, 2, 'OX ']]) {
       console.assert(board.getDiagonal(x, y) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
       console.assert(board.getDiagonal(x, y, false) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
     }
     for (let [x, y, expected] of [
       [0, 0, 'O'],
@@ -564,7 +564,7 @@ class Board {
       [1, 2, '  '],
       [2, 2, ' ']]) {
       console.assert(board.getDiagonal(x, y, true) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
     }
 
     board = board.mark(2, 1, true);
@@ -604,9 +604,9 @@ class Board {
       [1, 2, 'O '],
       [2, 2, 'OX ']]) {
       console.assert(board.getDiagonal(x, y) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
       console.assert(board.getDiagonal(x, y, false) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
     }
     for (let [x, y, expected] of [
       [0, 0, 'O'],
@@ -619,7 +619,7 @@ class Board {
       [1, 2, 'X '],
       [2, 2, ' ']]) {
       console.assert(board.getDiagonal(x, y, true) == expected,
-                     {msg: 'board.getDiagonal() is incorrect.'});
+                     {msg: 'board.getDiagonal() failed.'});
     }
   }
 }
@@ -658,15 +658,15 @@ class ASCIIDisplay extends Display {
 class CanvasDisplay extends Display {
   draw(board) {
     super.draw(board);
-    let target = this.parent.querySelector('canvas');
+    let target = this.parent.querySelector('canvas'),
+        width = board.width * SCALE,
+        height = board.height * SCALE,
+        middle = SCALE / 2;
     if (target == null) {
       this.parent.innerHTML = '';
       target = document.createElement('canvas');
       this.parent.appendChild(target);
     }
-    let width = board.width * SCALE,
-        height = board.height * SCALE,
-        middle = SCALE / 2;
     if ((target.width != width) || (target.height != height)) {
       target.width = width;
       target.height = height;
