@@ -81,13 +81,25 @@ class Display {
     this.marker = marker;
   }
   draw(board) {
-    this.marker.innerHTML = `Player: <span class="${board.playerMarker}">${board.playerMarker}</span> Computer: <span class="${board.computerMarker}">${board.computerMarker}</span>`;
+    if (board.playerWin) {
+      this.marker.innerHTML = `Player: <span class="${board.playerMarker}">${board.playerMarker} (won)</span> Computer: <span class="${board.computerMarker}">${board.computerMarker} (lost)</span>`;
+      alert('You won!');
+    }
+    else if (board.computerWin) {
+      this.marker.innerHTML = `Player: <span class="${board.playerMarker}">${board.playerMarker} (lost)</span> Computer: <span class="${board.computerMarker}">${board.computerMarker} (won)</span>`;
+      alert('You lost!');
+    }
+    else {
+      this.marker.innerHTML = `Player: <span class="${board.playerMarker}">${board.playerMarker}</span> Computer: <span class="${board.computerMarker}">${board.computerMarker}</span>`;
+      if (board.done) {
+        alert('You tied.');
+      }
+    }
   }
 }
 
 class ASCIIDisplay extends Display {
   draw(board) {
-    super.draw(board);
     let target = this.parent.querySelector('pre');
     if (target == null) {
       this.parent.innerHTML = '';
@@ -95,12 +107,12 @@ class ASCIIDisplay extends Display {
       this.parent.appendChild(target);
     }
     target.textContent = board.rows.join('\n');
+    super.draw(board);
   }
 }
 
 class CanvasDisplay extends Display {
   draw(board) {
-    super.draw(board);
     let target = this.parent.querySelector('canvas'),
         width = board.width * SCALE,
         height = board.height * SCALE,
@@ -155,12 +167,13 @@ class CanvasDisplay extends Display {
       context.lineTo(width, y * SCALE);
       context.stroke();
     }
+
+    super.draw(board);
   }
 }
 
 class TableDisplay extends Display {
   draw(board) {
-    super.draw(board);
     let target = this.parent.querySelector('table');
     if (target == null) {
       this.parent.innerHTML = '';
@@ -180,6 +193,7 @@ class TableDisplay extends Display {
       rows.push(row.join('\n'));
     }
     target.innerHTML = rows.join('\n');
+    super.draw(board);
   }
 }
 
@@ -198,13 +212,18 @@ function newBoard(event) {
   else {
     // Computer makes the first move
     board = new Board(size.value, size.value, size.value, O_MARKER, X_MARKER);
-    board = board.computerMove();
+    let {x, y} = board.getComputerMove();
+    board = board.mark(x, y, true);
   }
   display.draw(board);
 }
 
 size.addEventListener('change', newBoard);
 output.addEventListener('click', (event) => {
+  if (board.done) {
+    return;
+  }
+
   let box = output.getBoundingClientRect(),
       x = Math.min(Math.floor((event.clientX - box.left) / SCALE), board.width - 1),
       y = Math.min(Math.floor((event.clientY - box.top) / SCALE), board.height - 1),
@@ -218,17 +237,11 @@ output.addEventListener('click', (event) => {
   board = board.mark(x, y);
   if (board != previous) {
     // If the player actually changed the board (didn't click on an occupied square)
-    board = board.computerMove();
-
     display.draw(board);
-    if (board.playerWin) {
-      alert('You won!');
-    }
-    else if (board.computerWin) {
-      alert('You lost!');
-    }
-    else if (board.done) {
-      alert('You tied.');
+    if (!board.done) {
+      let {x, y} = board.getComputerMove();
+      board = board.mark(x, y, true);
+      display.draw(board);
     }
   }
 });

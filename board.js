@@ -254,9 +254,9 @@ class Board {
 
     return score;
   }
-  computerMove() {
+  getComputerMove() {
     if (this.done) {
-      return this;
+      return {x: -1, y: -1};
     }
 
     let scores = [],
@@ -271,7 +271,7 @@ class Board {
                                         Board.replaceCharAt(this.cells, index, this.computerMarker));
           if (computerBoard.computerWin) {
             // If this move results in a win, then make it immediately
-            return this.mark(x, y, true);
+            return {x: x, y: y};
           }
           if (playerBoard.playerWin) {
             // If letting player have this move results in a loss, then remember to block it
@@ -294,7 +294,7 @@ class Board {
 
     if (loss != null) {
       // Block player to prevent a loss
-      return this.mark(loss.x, loss.y, true);
+      return loss;
     }
 
     // Fallback to the best move according to minimax
@@ -319,7 +319,7 @@ class Board {
         }
       }
     });
-    return this.mark(scores[0].x, scores[0].y, true);
+    return {x: scores[0].x, y: scores[0].y};
   }
 
 
@@ -756,5 +756,34 @@ class Board {
       console.assert(board.getDiagonal(x, y, true) == expected,
                      {msg: 'board.getDiagonal() failed.'});
     }
+
+    values = board.getComputerMove();
+    console.assert(values.x == -1,
+                   {msg: 'board.getComputerMove() failed.'});
+    console.assert(values.y == -1,
+                   {msg: 'board.getComputerMove() failed.'});
+
+    // Test the AI goes for the win
+    board = new Board(3, 3, 3, X_MARKER, O_MARKER, 'OXX X OOX');
+    values = board.getComputerMove();
+    console.assert(values.x == 0,
+                   {msg: 'board.getComputerMove() failed.'});
+    console.assert(values.y == 1,
+                   {msg: 'board.getComputerMove() failed.'});
+
+    board = new Board(3, 3, 3, X_MARKER, O_MARKER, 'OXXXX OO ');
+    values = board.getComputerMove();
+    console.assert(values.x == 2,
+                   {msg: 'board.getComputerMove() failed.'});
+    console.assert(values.y == 2,
+                   {msg: 'board.getComputerMove() failed.'});
+
+    // Test the AI goes for the block
+    board = new Board(3, 3, 3, X_MARKER, O_MARKER, 'OX  X    ');
+    values = board.getComputerMove();
+    console.assert(values.x == 1,
+                   {msg: 'board.getComputerMove() failed.'});
+    console.assert(values.y == 2,
+                   {msg: 'board.getComputerMove() failed.'});
   }
 }
