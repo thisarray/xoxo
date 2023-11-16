@@ -50,7 +50,7 @@ td {
 <main>
 <h1>Tic Tac Toe</h1>
 
-<p><label for="size">Size:</label> <input type="number" id="size" name="size" value="3" min="3"></p>
+<p><label>Size: <input type="number" id="size" name="size" value="3" min="3"></label></p>
 
 <output id="board"></output>
 <p id="marker"></p>
@@ -64,7 +64,7 @@ td {
 Board.test();
 
 /*
- * Size in pixels of each square.
+ * Integer size in pixels of each square.
  */
 const SCALE = 40;
 
@@ -80,6 +80,7 @@ class Display {
     }
     this.marker = marker;
   }
+
   draw(board) {
     if (board.playerWin) {
       this.marker.innerHTML = `Player: <span class="${board.playerMarker}">${board.playerMarker} (won)</span> Computer: <span class="${board.computerMarker}">${board.computerMarker} (lost)</span>`;
@@ -112,30 +113,37 @@ class ASCIIDisplay extends Display {
 }
 
 class CanvasDisplay extends Display {
+  constructor(parent, marker, oColor = 'red', xColor = 'blue') {
+    super(parent, marker);
+    this.oColor = oColor;
+    this.xColor = xColor;
+  }
+
   draw(board) {
     let target = this.parent.querySelector('canvas'),
         width = board.width * SCALE,
         height = board.height * SCALE,
-        middle = SCALE / 2;
+        middle = Math.floor(SCALE / 2),
+        context, marker;
     if (target == null) {
       this.parent.innerHTML = '';
       target = document.createElement('canvas');
       this.parent.appendChild(target);
     }
-    if ((target.width != width) || (target.height != height)) {
+    if ((target.width !== width) || (target.height !== height)) {
       target.width = width;
       target.height = height;
     }
 
-    let context = target.getContext('2d');
+    context = target.getContext('2d');
     context.clearRect(0, 0, width, height);
 
     context.lineWidth = 5;
     for (let y = 0; y < board.height; y++) {
       for (let x = 0; x < board.width; x++) {
-        let marker = board.get(x, y);
-        if (marker == X_MARKER) {
-          context.strokeStyle = '#0000FF';
+        marker = board.getMarker(x, y);
+        if (marker === Board.X_MARKER) {
+          context.strokeStyle = this.xColor;
           context.beginPath();
           context.moveTo((x * SCALE) + 5, (y * SCALE) + 5);
           context.lineTo(((x + 1) * SCALE) - 5, ((y + 1) * SCALE) - 5);
@@ -143,8 +151,8 @@ class CanvasDisplay extends Display {
           context.lineTo((x * SCALE) + 5, ((y + 1) * SCALE) - 5);
           context.stroke();
         }
-        if (marker == O_MARKER) {
-          context.strokeStyle = '#FF0000';
+        if (marker === Board.O_MARKER) {
+          context.strokeStyle = this.oColor;
           context.beginPath();
           context.arc((x * SCALE) + middle, (y * SCALE) + middle, middle - 5, 0, 2 * Math.PI);
           context.stroke();
@@ -154,13 +162,15 @@ class CanvasDisplay extends Display {
 
     // Draw grid lines
     context.lineWidth = 1;
-    context.strokeStyle = '#000000';
+    context.strokeStyle = 'black';
+    // Vertical lines
     for (let x = 1; x < board.width; x++) {
       context.beginPath();
       context.moveTo(x * SCALE, 0);
       context.lineTo(x * SCALE, height);
       context.stroke();
     }
+    // Horizontal lines
     for (let y = 1; y < board.height; y++) {
       context.beginPath();
       context.moveTo(0, y * SCALE);
@@ -186,7 +196,7 @@ class TableDisplay extends Display {
       let row = [];
       row.push('  <tr>');
       for (let x = 0; x < board.width; x++) {
-        let marker = board.get(x, y);
+        let marker = board.getMarker(x, y);
         row.push(`    <td class="${marker}">${marker}</td>`);
       }
       row.push('  </tr>');
@@ -197,34 +207,36 @@ class TableDisplay extends Display {
   }
 }
 
-const output = document.querySelector('#board');
-const marker = document.querySelector('#marker');
-const size = document.querySelector('#size');
-//const display = new ASCIIDisplay(output, marker);
-const display = new CanvasDisplay(output, marker);
-//const display = new TableDisplay(output, marker);
+const OUTPUT = document.querySelector('#board');
+const MARKER = document.querySelector('#marker');
+const SIZE = document.querySelector('#size');
+//let display = new ASCIIDisplay(OUTPUT, MARKER);
+let display = new CanvasDisplay(OUTPUT, MARKER);
+//let display = new TableDisplay(OUTPUT, MARKER);
 
 let board = null;
 function newBoard(event) {
+  let size = parseInt(SIZE.value, 10);
   if (Math.random() < 0.5) {
-    board = new Board(size.value, size.value, size.value, X_MARKER, O_MARKER);
+    board = new Board(size, size, size, Board.X_MARKER, Board.O_MARKER);
   }
   else {
     // Computer makes the first move
-    board = new Board(size.value, size.value, size.value, O_MARKER, X_MARKER);
+    board = new Board(size, size, size, Board.O_MARKER, Board.X_MARKER);
     let {x, y} = board.getComputerMove();
-    board = board.mark(x, y, true);
+    board = board.place(x, y, board.computerMarker);
   }
   display.draw(board);
 }
 
-size.addEventListener('change', newBoard);
-output.addEventListener('click', (event) => {
+SIZE.addEventListener('change', newBoard);
+OUTPUT.addEventListener('click', (event) => {
   if (board.done) {
     return;
   }
 
-  let box = output.getBoundingClientRect(),
+  // Use OUTPUT because event.target may be a child of OUTPUT
+  let box = OUTPUT.getBoundingClientRect(),
       x = Math.min(Math.floor((event.clientX - box.left) / SCALE), board.width - 1),
       y = Math.min(Math.floor((event.clientY - box.top) / SCALE), board.height - 1),
       previous = board;
@@ -234,16 +246,16 @@ output.addEventListener('click', (event) => {
   if (y < 0) {
     y = 0;
   }
-  board = board.mark(x, y);
+
+  board = board.place(x, y, board.playerMarker);
   if (board != previous) {
     // If the player actually changed the board (didn't click on an occupied square)
-    display.draw(board);
     if (!board.done) {
       let {x, y} = board.getComputerMove();
-      board = board.mark(x, y, true);
-      display.draw(board);
+      board = board.place(x, y, board.computerMarker);
     }
   }
+  display.draw(board);
 });
 document.querySelector('#new').addEventListener('click', newBoard);
 
