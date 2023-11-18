@@ -12,8 +12,7 @@ body {
 }
 output {
   display: block;
-  margin-bottom: 1em;
-  margin-left: 1em;
+  margin: 1em 0;
 }
 pre {
   font-family: "Courier New", monospace;
@@ -23,18 +22,27 @@ pre {
 }
 table {
   border-collapse: collapse;
-  font-size: 36px;
-  line-height: 36px;
   margin: 0;
   padding: 0;
-  text-align: center;
 }
 td {
-  background-color: white;
-  border: 1px solid black;
-  color: black;
-  height: 38px;
-  width: 38px;
+  font-size: 32px;
+  text-align: center;
+  /* height and width so resulting cell is 40px by 40px */
+  height: 37px;
+  width: 37px;
+}
+td:first-child {
+  border-right: 1px solid black;
+}
+td:last-child {
+  border-left: 1px solid black;
+}
+tr:first-child > td {
+  border-bottom: 1px solid black;
+}
+tr:last-child > td {
+  border-top: 1px solid black;
 }
 .O {
   color: red;
@@ -191,18 +199,20 @@ class TableDisplay extends Display {
       this.parent.appendChild(target);
     }
 
-    let rows = [];
+    target.innerHTML = '';
     for (let y = 0; y < board.height; y++) {
-      let row = [];
-      row.push('  <tr>');
+      let row = document.createElement('tr');
       for (let x = 0; x < board.width; x++) {
-        let marker = board.getMarker(x, y);
-        row.push(`    <td class="${marker}">${marker}</td>`);
+        let cell = document.createElement('td'),
+            marker = board.getMarker(x, y);
+        cell.appendChild(document.createTextNode(marker));
+        if ((marker === Board.X_MARKER) || (marker === Board.O_MARKER)) {
+          cell.classList.add(marker);
+        }
+        row.appendChild(cell);
       }
-      row.push('  </tr>');
-      rows.push(row.join('\n'));
+      target.appendChild(row);
     }
-    target.innerHTML = rows.join('\n');
     super.draw(board);
   }
 }
@@ -211,8 +221,8 @@ const OUTPUT = document.querySelector('#board');
 const MARKER = document.querySelector('#marker');
 const SIZE = document.querySelector('#size');
 //let display = new ASCIIDisplay(OUTPUT, MARKER);
-let display = new CanvasDisplay(OUTPUT, MARKER);
-//let display = new TableDisplay(OUTPUT, MARKER);
+//let display = new CanvasDisplay(OUTPUT, MARKER);
+let display = new TableDisplay(OUTPUT, MARKER);
 
 let board = null;
 function newBoard(event) {
