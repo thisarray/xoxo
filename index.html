@@ -20,6 +20,17 @@ pre {
   line-height: 40px;
   text-transform: full-width;
 }
+article {
+  display: grid;
+  grid-auto-rows: 40px;
+  margin: 0;
+  padding: 0;
+}
+section {
+  border: 1px solid black;
+  font-size: 32px;
+  text-align: center;
+}
 table {
   border-collapse: collapse;
   margin: 0;
@@ -190,6 +201,32 @@ class CanvasDisplay extends Display {
   }
 }
 
+class GridDisplay extends Display {
+  draw(board) {
+    let target = this.parent.querySelector('article');
+    if (target == null) {
+      this.parent.innerHTML = '';
+      target = document.createElement('article');
+      this.parent.appendChild(target);
+    }
+
+    target.style.gridTemplateColumns = `${ SCALE }px `.repeat(board.width).trim();
+    target.innerHTML = '';
+    for (let y = 0; y < board.height; y++) {
+      for (let x = 0; x < board.width; x++) {
+        let cell = document.createElement('section'),
+            marker = board.getMarker(x, y);
+        cell.appendChild(document.createTextNode(marker));
+        if ((marker === Board.X_MARKER) || (marker === Board.O_MARKER)) {
+          cell.classList.add(marker);
+        }
+        target.appendChild(cell);
+      }
+    }
+    super.draw(board);
+  }
+}
+
 class TableDisplay extends Display {
   draw(board) {
     let target = this.parent.querySelector('table');
@@ -222,7 +259,8 @@ const MARKER = document.querySelector('#marker');
 const SIZE = document.querySelector('#size');
 //let display = new ASCIIDisplay(OUTPUT, MARKER);
 //let display = new CanvasDisplay(OUTPUT, MARKER);
-let display = new TableDisplay(OUTPUT, MARKER);
+let display = new GridDisplay(OUTPUT, MARKER);
+//let display = new TableDisplay(OUTPUT, MARKER);
 
 let board = null;
 function newBoard(event) {
