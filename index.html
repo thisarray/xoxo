@@ -171,7 +171,7 @@ class CanvasDisplay extends Display {
           context.lineTo((x * SCALE) + 5, ((y + 1) * SCALE) - 5);
           context.stroke();
         }
-        if (marker === Board.O_MARKER) {
+        else if (marker === Board.O_MARKER) {
           context.strokeStyle = this.oColor;
           context.beginPath();
           context.arc((x * SCALE) + middle, (y * SCALE) + middle, middle - 5, 0, 2 * Math.PI);
@@ -297,7 +297,7 @@ OUTPUT.addEventListener('click', (event) => {
   }
 
   board = board.place(x, y, board.playerMarker);
-  if (board != previous) {
+  if (board !== previous) {
     // If the player actually changed the board (didn't click on an occupied square)
     if (!board.done) {
       let {x, y} = board.getComputerMove();
