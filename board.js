@@ -214,6 +214,42 @@ class Board {
     return board;
   }
 
+  /*
+   * Return a new Board instance resulting from rotating the board 180 degrees.
+   */
+  rotate() {
+    let board = new Board(this.width, this.height, this.winLength, this.playerMarker, this.computerMarker);
+    board.cells = this.cells.slice();
+    board.cells.reverse();
+    return board;
+  }
+
+  /*
+   * Return a new Board instance resulting from mirroring the board horizontally.
+   */
+  mirrorHorizontal() {
+    let board = new Board(this.width, this.height, this.winLength, this.playerMarker, this.computerMarker);
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        board.cells[board._coordinatesToIndex(x, y)] = this.cells[this._coordinatesToIndex(this.width - 1 - x, y)];
+      }
+    }
+    return board;
+  }
+
+  /*
+   * Return a new Board instance resulting from mirroring the board vertically.
+   */
+  mirrorVertical() {
+    let board = new Board(this.width, this.height, this.winLength, this.playerMarker, this.computerMarker);
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        board.cells[board._coordinatesToIndex(x, y)] = this.cells[this._coordinatesToIndex(x, this.height - 1 - y)];
+      }
+    }
+    return board;
+  }
+
 
   /*
    * Return a score for placing the computer marker at the coordinates (x, y).
@@ -401,7 +437,13 @@ class Board {
       }
     }
 
-    Board.CACHE.set(key, [O_total, X_total, draw_total])
+    for (let k of [
+      key,
+      marker + ':' + board.rotate().cells.join(''),
+      marker + ':' + board.mirrorHorizontal().cells.join(''),
+      marker + ':' + board.mirrorVertical().cells.join('')]) {
+      Board.CACHE.set(k, [O_total, X_total, draw_total]);
+    }
     return [O_total, X_total, draw_total];
   }
 
@@ -806,6 +848,20 @@ class Board {
       console.assert(board._getDiagonal(x, y, true) === expected,
                      {msg: 'board._getDiagonal() failed.'});
     }
+
+    console.assert(board.rotate().cells.join('') === '  OXXOX O',
+                   {msg: 'board.rotate() failed.'});
+    console.assert(board.mirrorHorizontal().cells.join('') === 'X OXXO  O',
+                   {msg: 'board.mirrorHorizontal() failed.'});
+    console.assert(board.mirrorVertical().cells.join('') === 'O  OXXO X',
+                   {msg: 'board.mirrorVertical() failed.'});
+    // Repeating the operation twice gets back to the start
+    console.assert(board.rotate().rotate().cells.join('') === board.cells.join(''),
+                   {msg: 'board.rotate() failed.'});
+    console.assert(board.mirrorHorizontal().mirrorHorizontal().cells.join('') === board.cells.join(''),
+                   {msg: 'board.mirrorHorizontal() failed.'});
+    console.assert(board.mirrorVertical().mirrorVertical().cells.join('') === board.cells.join(''),
+                   {msg: 'board.mirrorVertical() failed.'});
 
     values = board.getComputerMove();
     console.assert(values.x === -1,
